@@ -90,7 +90,7 @@
 
             ws.onclose = () => {
                 console.log("❌ WebSocket closed, reconnecting...");
-                document.getElementById("emergencyStatus").textContent = "DISCONNECTED";
+                document.getElementById("emergencyStatus").textContent = "EMERGENCY STOPP!!!!";
                 setTimeout(connectWebSocket, 2000);
             };
 
@@ -136,7 +136,7 @@
         });
 
         document.getElementById("cancelEmergencyBtn").addEventListener("click", () => {
-            const isStopped = document.getElementById("emergencyStatus").textContent === "STOP !!";
+            const isStopped = document.getElementById("emergencyStatus").textContent === "System Running";
 
             if (!isStopped) return;
 
