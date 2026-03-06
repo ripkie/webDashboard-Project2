@@ -102,7 +102,7 @@
         function updateDashboard(data) {
             const isEmergency = Number(data.emergency) === 1;
 
-            document.getElementById("emergencyStatus").textContent = isEmergency ? "STOP !!" : "RUN";
+            document.getElementById("emergencyStatus").textContent = isEmergency ? "EMERGENCY STOPP!!!!" : "System Runing";
             document.getElementById("counter").textContent = data.counter ?? 0;
             document.getElementById("pwm").textContent = data.pwm ?? 0;
             document.getElementById("pwmValueText").textContent = data.pwm ?? 150;
