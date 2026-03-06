@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ESP32 Conveyor Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .item {
+            margin-bottom: 8px;
+        }
+
+        .btn {
+            margin-top: 10px;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-emergency {
+            background: #e02020;
+            color: white;
+        }
+
+        .btn-emergency-off {
+            background: #1a877f;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>ESP32 Conveyor Dashboard</h1>
+
+    <div class="card">
+        <div class="item">
+            <strong>Emergency:</strong> <span id="emergencyStatus">RUN</span>
+        </div>
+        <div class="item">
+            <strong>Counter:</strong> <span id="counter">0</span>
+        </div>
+        <div class="item">
+            <strong>PWM:</strong> <span id="pwm">0</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <label for="pwmSlider">PWM: <span id="pwmValueText">150</span></label>
+        <input type="range" id="pwmSlider" min="0" max="255" value="150" style="width: 100%" />
+    </div>
+
+    <div class="card">
+        <button id="toggleEmergency" class="btn btn-emergency">
+            EMERGENCY STOP
+        </button>
+    </div>
+
+    <script>
+        const wsUrl = "ws://namakamu.up.railway.app/ws"; // Ganti dengan domain Railway kamu
+        let ws;
+
+        function connectWebSocket() {
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                console.log("Connected to Railway backend");
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    document.getElementById("emergencyStatus").innerHTML =
+                        data.emergency ? "STOP !!" : "RUN";
+                    document.getElementById("counter").innerHTML = data.counter;
+                    document.getElementById("pwm").innerHTML = data.pwm;
+                    document.getElementById("pwmValueText").innerHTML = data.pwm;
+                    document.getElementById("pwmSlider").value = data.pwm;
+
+                    const btn = document.getElementById("toggleEmergency");
+                    if (data.emergency) {
+                        btn.innerText = "CANCEL EMERGENCY";
+                        btn.classList.remove("btn-emergency");
+                        btn.classList.add("btn-emergency-off");
+                    } else {
+                        btn.innerText = "EMERGENCY STOP";
+                        btn.classList.remove("btn-emergency-off");
+                        btn.classList.add("btn-emergency");
+                    }
+                } catch (e) {
+                    console.error("Invalid JSON:", e);
+                }
+            };
+
+            ws.onclose = () => {
+                console.log("WebSocket closed, reconnecting...");
+                setTimeout(connectWebSocket, 2000);
+            };
+        }
+
+        connectWebSocket();
+
+        // Slidebar PWM
+        const slider = document.getElementById("pwmSlider");
+        slider.addEventListener("change", () => {
+            const value = slider.value;
+            document.getElementById("pwmValueText").innerHTML = value;
+
+            if (ws.readyState === 1) {
+                ws.send(JSON.stringify({ type: "set_pwm", pwm: parseInt(value) }));
+            }
+        });
+
+        // Tombol emergency
+        const btn = document.getElementById("toggleEmergency");
+        btn.addEventListener("click", () => {
+            const isStop = document.getElementById("emergencyStatus").innerHTML === "STOP !!";
+
+            if (ws.readyState === 1) {
+                ws.send(JSON.stringify({
+                    type: "toggle_emergency",
+                    emergency: isStop ? 0 : 1
+                }));
+            }
+        });
+    </script>
+</body>
+
+</html>
