@@ -2,10 +2,11 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 Conveyor Dashboard</title>
     <style>
+        /* CSS sama persis seperti sebelumnya */
         body {
             font-family: Arial, sans-serif;
             background: #f4f6f9;
@@ -51,104 +52,105 @@
 </head>
 
 <body>
-    <h1>ESP32 Conveyor Dashboard</h1>
+    <h1>🚀 ESP32 Conveyor Dashboard</h1>
 
     <div class="card">
-        <div class="item">
-            <strong>Emergency:</strong> <span id="emergencyStatus">RUN</span>
-        </div>
-        <div class="item">
-            <strong>Counter:</strong> <span id="counter">0</span>
-        </div>
-        <div class="item">
-            <strong>PWM:</strong> <span id="pwm">0</span>
-        </div>
+        <div class="item"><strong>Status:</strong> <span id="emergencyStatus">RUN</span></div>
+        <div class="item"><strong>Counter:</strong> <span id="counter">0</span></div>
+        <div class="item"><strong>PWM:</strong> <span id="pwm">0</span></div>
+        <div class="item"><strong>Last Update:</strong> <span id="lastUpdate">-</span></div>
     </div>
 
     <div class="card">
-        <label for="pwmSlider">PWM: <span id="pwmValueText">150</span></label>
-        <input type="range" id="pwmSlider" min="0" max="255" value="150" style="width: 100%" />
+        <label>PWM: <span id="pwmValueText">150</span></label>
+        <input type="range" id="pwmSlider" min="0" max="255" value="150" style="width: 100%;">
     </div>
 
     <div class="card">
-        <button id="toggleEmergency" class="btn btn-emergency">
-            EMERGENCY STOP
-        </button>
+        <button id="toggleEmergency" class="btn btn-emergency">EMERGENCY STOP</button>
     </div>
 
     <script>
-        const wsUrl = "wss://backendrailway-production-2514.up.railway.app/ws"; //init web server
+        // GANTI INI dengan URL Railway Anda
+        const RAILWAY_URL = "https://backendrailway-production-6b59.up.railway.app";
+        const WS_URL = RAILWAY_URL + "/ws";
         let ws;
 
+        // WebSocket untuk TERIMA data real-time
         function connectWebSocket() {
-            ws = new WebSocket(wsUrl);
+            ws = new WebSocket(WS_URL);
 
             ws.onopen = () => {
-                console.log("Connected to Railway backend");
+                console.log("✅ Connected to Railway WebSocket");
+                document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString();
             };
 
             ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
-
-                    document.getElementById("emergencyStatus").innerHTML =
-                        data.emergency ? "STOP !!" : "RUN";
-                    document.getElementById("counter").innerHTML = data.counter;
-                    document.getElementById("pwm").innerHTML = data.pwm;
-                    document.getElementById("pwmValueText").innerHTML = data.pwm;
-                    document.getElementById("pwmSlider").value = data.pwm;
-
-                    const btn = document.getElementById("toggleEmergency");
-                    if (data.emergency) {
-                        btn.innerText = "CANCEL EMERGENCY";
-                        btn.classList.remove("btn-emergency");
-                        btn.classList.add("btn-emergency-off");
-                    } else {
-                        btn.innerText = "EMERGENCY STOP";
-                        btn.classList.remove("btn-emergency-off");
-                        btn.classList.add("btn-emergency");
-                    }
+                    updateDashboard(data);
+                    document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString();
                 } catch (e) {
-                    console.error("Invalid JSON:", e);
+                    console.error("JSON parse error:", e);
                 }
             };
 
             ws.onclose = () => {
-                console.log("WebSocket closed, reconnecting...");
+                console.log("❌ WebSocket closed, reconnecting...");
+                document.getElementById("emergencyStatus").textContent = "DISCONNECTED";
                 setTimeout(connectWebSocket, 2000);
             };
         }
 
-        connectWebSocket();
+        function updateDashboard(data) {
+            document.getElementById("emergencyStatus").textContent = data.emergency ? "STOP !!" : "RUN";
+            document.getElementById("counter").textContent = data.counter || 0;
+            document.getElementById("pwm").textContent = data.pwm || 0;
+            document.getElementById("pwmValueText").textContent = data.pwm || 150;
+            document.getElementById("pwmSlider").value = data.pwm || 150;
 
-        // Slidebar PWM
-        const slider = document.getElementById("pwmSlider");
-        slider.addEventListener("change", () => {
-            const value = slider.value;
-            document.getElementById("pwmValueText").innerHTML = value;
+            const btn = document.getElementById("toggleEmergency");
+            if (data.emergency) {
+                btn.textContent = "✅ CANCEL EMERGENCY";
+                btn.className = "btn btn-emergency-off";
+            } else {
+                btn.textContent = "🚨 EMERGENCY STOP";
+                btn.className = "btn btn-emergency";
+            }
+        }
 
-            // Kirim HTTP POST ke /api/command
-            fetch('https://backendrailway-production-2514.up.railway.app/api/command', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: "set_pwm", pwm: parseInt(value) })
-            });
+        // PWM Slider - kirim via HTTP POST
+        document.getElementById("pwmSlider").addEventListener("input", (e) => {
+            const pwm = e.target.value;
+            document.getElementById("pwmValueText").textContent = pwm;
+
+            fetch(`${RAILWAY_URL}/api/control`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    type: "set_pwm",
+                    pwm: parseInt(pwm)
+                })
+            }).then(() => console.log("PWM sent:", pwm));
         });
 
-        // Tombol emergency
-        const btn = document.getElementById("toggleEmergency");
-        btn.addEventListener("click", () => {
-            const isStop = document.getElementById("emergencyStatus").innerHTML === "STOP !!";
+        // Emergency Button
+        document.getElementById("toggleEmergency").addEventListener("click", () => {
+            const isStopped = document.getElementById("emergencyStatus").textContent === "STOP !!";
+            const emergency = isStopped ? 0 : 1;
 
-            fetch('https://backendrailway-production-2514.up.railway.app/api/command', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+            fetch(`${RAILWAY_URL}/api/control`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     type: "toggle_emergency",
-                    emergency: isStop ? 0 : 1
+                    emergency: emergency
                 })
-            });
+            }).then(() => console.log("Emergency:", emergency));
         });
+
+        // Auto connect WebSocket
+        connectWebSocket();
     </script>
 </body>
 
