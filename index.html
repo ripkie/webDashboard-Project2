@@ -127,9 +127,12 @@
             const value = slider.value;
             document.getElementById("pwmValueText").innerHTML = value;
 
-            if (ws.readyState === 1) {
-                ws.send(JSON.stringify({ type: "set_pwm", pwm: parseInt(value) }));
-            }
+            // Kirim HTTP POST ke /api/command
+            fetch('https://backendrailway-production-2514.up.railway.app/api/command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: "set_pwm", pwm: parseInt(value) })
+            });
         });
 
         // Tombol emergency
@@ -137,12 +140,14 @@
         btn.addEventListener("click", () => {
             const isStop = document.getElementById("emergencyStatus").innerHTML === "STOP !!";
 
-            if (ws.readyState === 1) {
-                ws.send(JSON.stringify({
+            fetch('https://backendrailway-production-2514.up.railway.app/api/command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                     type: "toggle_emergency",
                     emergency: isStop ? 0 : 1
-                }));
-            }
+                })
+            });
         });
     </script>
 </body>
